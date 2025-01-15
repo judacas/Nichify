@@ -1,3 +1,4 @@
+from math import e
 import os
 import json
 from typing import Any, Callable, List
@@ -61,15 +62,18 @@ Do not use markdown
 
 # Method 1: Get user input and add to messages
 def get_user_input(messages: List[Any]) -> List[Any]:
-    user_input = input("\n\033[94mUser: ")
+    user_input = input("\n\n\033[94mUser: ")
     print("\033[0m")
+    if user_input.strip() == "":
+        raise ValueError("User input cannot be empty.")
+    if user_input.strip().lower() in ["exit", "quit", "bye", "goodbye", "stop", "end", "leave", "close"]:
+        exit_application()
     messages.append({"role": "user", "content": user_input})
     return messages
 
 # Method 2: Handle function calls based on AI response
-def handle_function_calls(response, messages: List[Any]) -> List[Any]:
-    assistant_message = response.choices[0].message
-    for tool_call in assistant_message.tool_calls:
+def handle_function_calls(tool_calls, messages: List[Any]) -> List[Any]:
+    for tool_call in tool_calls:
         func_name = tool_call.function.name
         args = json.loads(tool_call.function.arguments)
         if func_name in functions:
@@ -88,24 +92,46 @@ def handle_function_calls(response, messages: List[Any]) -> List[Any]:
 
 # Method 3: Call AI, handle function calls, and update messages
 def process_ai_response(messages: List[Any]) -> List[Any]:
-    response = client.chat.completions.create(
-        model="gpt-4o-mini", messages=messages, tools=tools
+    stream = client.chat.completions.create(
+        model="gpt-4o-mini", messages=messages, tools=tools, stream=True
     )
-    if response.choices[0].finish_reason in ["length", "content_filter"]:
-        raise ValueError(f"Model response is too long or filtered. \n{response.choices[0]}")
+    final_tool_calls = {}
+    final_content = ""
+    first_flag = True
+    for chunk in stream:
+        if chunk.choices[0].finish_reason in ["length", "content_filter"]:
+            raise ValueError(f"Model response is too long or filtered. \n{chunk.choices[0]}")
+        delta = chunk.choices[0].delta
+        if delta.content:
+            if first_flag:
+                first_flag = False
+                print("\n\033[92mAssistant: \033[0m", end="")
+            print(f"\033[92m{delta.content}\033[0m", end="")
+            final_content += delta.content
+        if delta.tool_calls:
+            for tool_call in delta.tool_calls:
+                index = tool_call.index
 
-    assistant_message = response.choices[0].message
-    messages.append(assistant_message)
+                if index not in final_tool_calls:
+                    final_tool_calls[index] = tool_call
 
-    # If the AI made function calls, handle them
-    if response.choices[0].finish_reason == "tool_calls":
-        messages = handle_function_calls(response, messages)
+                final_tool_calls[index].function.arguments += tool_call.function.arguments  # type: ignore
+    
+    if final_content:
+        messages.append({"role": "assistant", "content": final_content})
+        
+    if final_tool_calls:
+        messages.append({"role": "assistant", "tool_calls": list(final_tool_calls.values())})
+        messages = handle_function_calls(list(final_tool_calls.values()), messages)
 
     return messages
 
 # Method 4: Get user input and process AI response
 def process_user_request(messages: List[dict]) -> List[dict]:
-    messages = get_user_input(messages)
+    try:
+        messages = get_user_input(messages)
+    except ValueError as e:
+        print("\n")
     messages = process_ai_response(messages)
     return messages
 
@@ -118,7 +144,7 @@ def main():
         try:
             
             messages = process_user_request(messages)
-            print(f"\n\033[92mAssistant: {messages[-1].content}\033[0m")
+            # print(f"\n\033[92mAssistant: {messages[-1].content}\033[0m")
         except ValueError as e:
             print(f"Error: {e}")
         except KeyboardInterrupt:

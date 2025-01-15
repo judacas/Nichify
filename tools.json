@@ -67,7 +67,7 @@
         "type": "function",
         "function": {
             "name": "exit_application",
-            "description": "Exits the application with a thank you message.",
+            "description": "Exits the application with a thank you message when user implies they want to leave.",
             "strict": true,
             "parameters": {
                 "type": "object",
