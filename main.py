@@ -4,6 +4,9 @@ import json
 from typing import Any, Callable, List
 from openai import OpenAI
 from dotenv import load_dotenv
+from spotipy import Spotify # type: ignore
+from spotipy.oauth2 import SpotifyOAuth # type: ignore
+from enum import Enum
 
 # Load environment variables
 load_dotenv()
@@ -15,12 +18,73 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 with open("tools.json", "r") as f:
     tools = json.load(f)
 
+sp = Spotify(auth_manager=SpotifyOAuth(
+    client_id=os.getenv("SPOTIPY_CLIENT_ID"),
+    client_secret=os.getenv("SPOTIPY_CLIENT_SECRET"),
+    redirect_uri=os.getenv("SPOTIPY_REDIRECT_URI"),
+    scope="user-library-read playlist-read-private"
+))
+
+class RemovalMode(Enum):
+    AUTOMATIC = "automatic"
+    MANUAL = "manual"
+
+def ai_call_remove_duplicates(playlist_id: str, mode: str):
+    return str(remove_duplicates(playlist_id, RemovalMode(mode)))
+
 # Define the function implementations
-def remove_duplicates(playlist_id, mode):
-    return {
-        "status": "success",
-        "message": f"Removed duplicates from {playlist_id} in {mode} mode.",
-    }
+def remove_duplicates(playlist_id: str, mode: RemovalMode = RemovalMode.AUTOMATIC):
+    # try:
+    # Fetch playlist tracks
+    results = sp.playlist_tracks(playlist_id)
+    if not results:
+        raise ValueError("Playlist not found or empty.")
+    tracks = results['items']
+
+    # Collect metadata for comparison
+    seen = {}
+    duplicates = []
+
+    for track in tracks:
+        print(track)
+        track_id = track['track']['id']
+        title = track['track']['name']
+        artist = ", ".join([a['name'] for a in track['track']['artists']]) if track['track']['artists'] else "Unknown Artist"
+        length = track['track']['duration_ms']
+
+        # Create a unique identifier
+        track_key = (title.lower(), artist.lower(), length)
+
+        if track_key in seen:
+            duplicates.append(track_id)
+        else:
+            seen[track_key] = track_id
+
+    # Handle duplicates
+    if mode == RemovalMode.AUTOMATIC:
+        sp.playlist_remove_all_occurrences_of_items(playlist_id, duplicates)
+        return {"status": "success", "message": f"Removed {len(duplicates)} duplicates automatically."}
+
+    elif mode == RemovalMode.MANUAL:
+        # Prompt user for each duplicate
+        for track_id in duplicates:
+            track: Any = sp.track(track_id) # type: ignore
+            print(f"Duplicate found: {track['name']} by {', '.join([a['name'] for a in track['artists']])}")
+            confirm = input("Remove this track? (y/n): ").strip().lower()
+            if confirm == "y":
+                sp.playlist_remove_all_occurrences_of_items(playlist_id, [track_id])
+        print(f"duplicates: {duplicates}")
+        print(f"seen: {seen}")
+        return {"status": "success", "message": "Manual removal process completed."}
+
+    else:
+        raise ValueError("Invalid mode provided.")
+    
+
+    # except Exception as e:
+    #     print(f"Error: {e}")
+    #     return str({"status": "error", "message": str(e)})
+
 
 def combine_playlists(playlist_ids, method):
     return {
@@ -34,7 +98,7 @@ def exit_application():
 
 # Function dispatcher
 functions: dict[str,Callable] = {
-    "remove_duplicates": remove_duplicates,
+    "remove_duplicates": ai_call_remove_duplicates,
     "combine_playlists": combine_playlists,
     "exit_application": exit_application,
 }
@@ -54,6 +118,7 @@ You are Nichify, an assistant for managing Spotify playlists. Your available com
 - If a user requests a command that is not yet implemented, inform them and return to the menu.
 - If a user requests anything unrelated, politely decline and bring them back to the menu.
 - Always guide the user by showing the menu after completing their request.
+- If a function call failed, inform the user and explain why it failed.
 
 Do not use markdown
 """
@@ -132,6 +197,7 @@ def process_user_request(messages: List[dict]) -> List[dict]:
         messages = get_user_input(messages)
     except ValueError as e:
         print("\n")
+        return messages
     messages = process_ai_response(messages)
     return messages
 
@@ -142,7 +208,6 @@ def main():
     messages: Any = [{"role": "developer", "content": system_prompt}]
     while True:
         try:
-            
             messages = process_user_request(messages)
             # print(f"\n\033[92mAssistant: {messages[-1].content}\033[0m")
         except ValueError as e:
