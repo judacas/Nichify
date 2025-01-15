@@ -1,0 +1,79 @@
+[
+    {
+        "type": "function",
+        "function": {
+            "name": "remove_duplicates",
+            "description": "Remove duplicate songs from a playlist.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "playlist_id": {
+                        "type": "string",
+                        "description": "The ID of the playlist."
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": [
+                            "automatic",
+                            "manual"
+                        ],
+                        "description": "Mode of operation. 'automatic' removes duplicates without confirmation. 'manual' prompts for each removal."
+                    }
+                },
+                "required": [
+                    "playlist_id",
+                    "mode"
+                ],
+                "additionalProperties": false
+            },
+            "strict": true
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "combine_playlists",
+            "description": "Combine multiple playlists using a specified method.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "playlist_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "List of playlist IDs to combine."
+                    },
+                    "method": {
+                        "type": "string",
+                        "enum": [
+                            "sequential",
+                            "intertwined",
+                            "ratio"
+                        ],
+                        "description": "Method of combining playlists."
+                    }
+                },
+                "required": [
+                    "playlist_ids",
+                    "method"
+                ],
+                "additionalProperties": false
+            },
+            "strict": true
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "exit_application",
+            "description": "Exits the application with a thank you message.",
+            "strict": true,
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+            }
+        }
+    }
+]

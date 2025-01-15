@@ -1,0 +1,7 @@
+spotipy
+python-dotenv
+openai
+psycopg[binary]
+SQLAlchemy
+python-dotenv
+
