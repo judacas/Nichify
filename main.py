@@ -39,8 +39,12 @@ functions: dict[str,Callable] = {
 }
 
 def printMenu():
+    print("\033[93mWelcome to Nichify!")
+    print("You can ask me to do any of the below tasks:")
     for i, func_name in enumerate(functions.keys(), 1):
         print(f"{i}. {func_name}")
+    print("\033[0m")
+
 
 # System/Developer Prompt
 system_prompt = """
@@ -107,10 +111,7 @@ def process_user_request(messages: List[dict]) -> List[dict]:
 
 # Main loop
 def main():
-    print("\033[93mWelcome to Nichify!")
-    print("You can ask me to do any of the below tasks:")
     printMenu()
-    print("\033[0m")
     # Message list
     messages: Any = [{"role": "developer", "content": system_prompt}]
     while True:
