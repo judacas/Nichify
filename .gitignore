@@ -1,0 +1,25 @@
+# Python Byte-compiled files
+__pycache__/
+*.pyc
+.mypy_cache/
+
+# Virtual Environment
+.venv/
+env/
+ENV/
+
+# Environment Variables
+.env
+
+# Spotipy OAuth Cache
+src/.cache/
+
+# Editor Configurations
+.vscode/
+*.code-workspace
+
+# Logs
+*.log
+
+# stuff that's just for llms to understand my project
+forChat/

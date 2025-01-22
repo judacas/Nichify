@@ -3,64 +3,31 @@
         "type": "function",
         "function": {
             "name": "remove_duplicates",
-            "description": "Remove duplicate songs from a playlist.",
+            "description": "Removes exact duplicates from a given playlist and optionally handles similar tracks.",
+            "strict": true,
             "parameters": {
                 "type": "object",
+                "required": [
+                    "playlist_id",
+                    "include_similar",
+                    "remove_similar_automatically"
+                ],
                 "properties": {
                     "playlist_id": {
                         "type": "string",
-                        "description": "The ID of the playlist."
+                        "description": "Unique identifier for the playlist (can be found in the URL of the playlist on Spotify)"
                     },
-                    "mode": {
-                        "type": "string",
-                        "enum": [
-                            "automatic",
-                            "manual"
-                        ],
-                        "description": "Mode of operation. 'automatic' removes duplicates without confirmation. 'manual' prompts for each removal."
+                    "include_similar": {
+                        "type": "boolean",
+                        "description": "Flag indicating whether to include similar tracks in the removal process (not yet implemented)"
+                    },
+                    "remove_similar_automatically": {
+                        "type": "boolean",
+                        "description": "Flag indicating whether to remove duplicates automatically (not yet implemented)"
                     }
                 },
-                "required": [
-                    "playlist_id",
-                    "mode"
-                ],
                 "additionalProperties": false
-            },
-            "strict": true
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "combine_playlists",
-            "description": "Combine multiple playlists using a specified method.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "playlist_ids": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "description": "List of playlist IDs to combine."
-                    },
-                    "method": {
-                        "type": "string",
-                        "enum": [
-                            "sequential",
-                            "intertwined",
-                            "ratio"
-                        ],
-                        "description": "Method of combining playlists."
-                    }
-                },
-                "required": [
-                    "playlist_ids",
-                    "method"
-                ],
-                "additionalProperties": false
-            },
-            "strict": true
+            }
         }
     },
     {

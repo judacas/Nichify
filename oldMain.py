@@ -22,7 +22,7 @@ sp = Spotify(auth_manager=SpotifyOAuth(
     client_id=os.getenv("SPOTIPY_CLIENT_ID"),
     client_secret=os.getenv("SPOTIPY_CLIENT_SECRET"),
     redirect_uri=os.getenv("SPOTIPY_REDIRECT_URI"),
-    scope="user-library-read playlist-read-private"
+    scope="user-library-read playlist-read-private playlist-modify-private playlist-modify-public"
 ))
 
 class RemovalMode(Enum):
@@ -53,7 +53,7 @@ def remove_duplicates(playlist_id: str, mode: RemovalMode = RemovalMode.AUTOMATI
         length = track['track']['duration_ms']
 
         # Create a unique identifier
-        track_key = (title.lower(), artist.lower(), length)
+        track_key = (title, artist, length)
 
         if track_key in seen:
             duplicates.append(track_id)
