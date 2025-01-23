@@ -19,10 +19,14 @@ venv.bak/
 
 # Spotipy OAuth Cache
 src/.cache/
+*.cache
 
 # Editor Configurations
 .vscode/
 *.code-workspace
+
+# my playlists
+user_playlists.json
 
 # Logs
 *.log

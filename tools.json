@@ -15,7 +15,7 @@
                 "properties": {
                     "playlist_id": {
                         "type": "string",
-                        "description": "Unique identifier for the playlist (can be found in the URL of the playlist on Spotify)"
+                        "description": "Unique identifier for the playlist (playlist URL, URI, or ID) from which to remove duplicates"
                     },
                     "include_similar": {
                         "type": "boolean",

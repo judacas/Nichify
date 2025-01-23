@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 from spotipy import Spotify # type: ignore
 from spotipy.oauth2 import SpotifyOAuth # type: ignore
 import os
+import json
 
 load_dotenv()
 
@@ -40,8 +41,46 @@ def find_exact_duplicates(playlist_id: str):
 
     return duplicates
 
-def combine_playlists(playlist_ids: list[str]):
-    pass
+def get_user_playlists() -> list[dict]:
+    """
+    Fetch playlists owned by the authenticated user, ensuring no duplicates.
+
+    Returns:
+        list[dict]: A list of playlists (name, id, description, tracks_total, snapshot_id, image_url).
+    """
+    playlists = []
+    seen_ids = set()  # Track IDs we've already processed
+    current_user_id = sp.current_user()['id']  # Get the current user's Spotify ID
+    results = sp.current_user_playlists()
+
+    while results:
+        for playlist in results['items']:
+            # Check if playlist ID has already been added
+            if playlist['id'] not in seen_ids:
+                # Include only playlists owned by the user
+                if playlist['owner']['id'] == current_user_id:
+                    playlists.append({
+                        'id': playlist['id'],
+                        'name': playlist['name'],
+                        'description': playlist.get('description', ''),
+                        'tracks_total': playlist['tracks']['total'],
+                        'snapshot_id': playlist['snapshot_id'],
+                        'image_url': playlist['images'][0]['url'] if playlist['images'] else None
+                    })
+                    seen_ids.add(playlist['id'])  # Mark this ID as seen
+
+        # Move to the next page of results
+        results = sp.next(results) if results['next'] else None
+
+    return playlists
+
+
+
+if __name__ == "__main__":
+    playlists = get_user_playlists()
+    with open("user_playlists.json", "w", encoding="utf-8") as f:
+        json.dump(playlists, f, indent=4, ensure_ascii=False)
+    print("Playlists saved to 'user_playlists.json'.")
 
 
     
