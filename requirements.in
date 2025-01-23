@@ -3,3 +3,4 @@ python-dotenv
 spotipy
 SQLAlchemy
 psycopg[binary]
+python-levenshtein

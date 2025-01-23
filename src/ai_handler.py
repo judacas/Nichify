@@ -18,18 +18,17 @@ def handle_function_calls(tool_calls, messages: List[Any]) -> List[Any]:
     for tool_call in tool_calls:
         command = tool_call.function.name
         args = json.loads(tool_call.function.arguments)
-        print(commands)
-        if command in commands:
-            result = commands[command]["function"](**args)
-            messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": str(result),
-                }
-            )
-        else:
+        print(f"\n\033[94mTool: {command}({args})\033[0m")
+        if command not in commands:
             raise ValueError(f"Command {command} not found in dispatcher.")
+        result = commands[command]["function"](**args)
+        messages.append(
+            {
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "content": str(result),
+            }
+        )
     messages = process_ai_response(messages)
     return messages
 

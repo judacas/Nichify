@@ -42,5 +42,26 @@
                 "additionalProperties": false
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_closest_playlist",
+            "description": "Fetch relevant playlists based on a given title and return the closest match.",
+            "strict": true,
+            "parameters": {
+                "type": "object",
+                "required": [
+                    "title"
+                ],
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "The title of the playlist to search for."
+                    }
+                },
+                "additionalProperties": false
+            }
+        }
     }
 ]
