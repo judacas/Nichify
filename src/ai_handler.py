@@ -1,27 +1,63 @@
 import os
-from typing import Any, List
+from typing import Any, Callable, List, Optional
 import json
 from openai import OpenAI
 from dotenv import load_dotenv
-from ai_commands import commands
 
 load_dotenv()
 
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Load function schemas from file
-with open(os.path.join("..", "tools.json"), "r") as f:
-    tools = json.load(f)
 
-def handle_function_calls(tool_calls, messages: List[Any]) -> List[Any]:
+def get_user_input(messages: List[Any]) -> List[Any]:
+    while (user_input := input("\n\n\033[94mUser: ").strip()) == "":
+        pass
+    print("\033[0m")
+    if user_input.strip().lower() in [
+        "exit",
+        "quit",
+        "bye",
+        "goodbye",
+        "stop",
+        "end",
+        "leave",
+        "close",
+    ]:
+        print("\033[93mThank you for using Nichify! Exiting now.\033[0m")
+        exit(0)
+    messages.append({"role": "user", "content": user_input})
+    return messages
+
+
+def process_user_request(
+    messages: List[Any],
+    tools: Optional[dict] = None,
+    toolsMap: Optional[dict[str, Callable[..., Any]]] = None,
+) -> List[dict]:
+    try:
+        messages = get_user_input(messages)
+    except ValueError as e:
+        print("\n")
+        return messages
+    messages = process_ai_response(messages, tools=tools, toolsMap=toolsMap)
+    return messages
+
+
+def handle_function_calls(
+    tool_calls,
+    messages: List[Any],
+    tools: dict,
+    toolsMap: dict[str, Callable[..., Any]],
+) -> List[Any]:
     for tool_call in tool_calls:
-        command = tool_call.function.name
+        tool = tool_call.function.name
         args = json.loads(tool_call.function.arguments)
-        print(f"\n\033[94mTool: {command}({args})\033[0m")
-        if command not in commands:
-            raise ValueError(f"Command {command} not found in dispatcher.")
-        result = commands[command]["function"](**args)
+        print(f"\n\033[94mTool: {tool}({args})\033[0m")
+        if tool not in toolsMap:
+            raise ValueError(f"Command {tool} not found in dispatcher.")
+        result:dict = toolsMap[tool](**args)
+        print(f"\033[94mResult: {json.dumps(result, indent=4)}\033[0m")
         messages.append(
             {
                 "role": "tool",
@@ -29,19 +65,35 @@ def handle_function_calls(tool_calls, messages: List[Any]) -> List[Any]:
                 "content": str(result),
             }
         )
-    messages = process_ai_response(messages)
+    messages = process_ai_response(messages, tools, toolsMap)
     return messages
 
-def process_ai_response(messages: List[Any]) -> List[Any]:
-    stream = client.chat.completions.create(
-        model="gpt-4o-mini", messages=messages, tools=tools, stream=True
+
+def process_ai_response(
+    messages: List[Any],
+    tools: Optional[dict] = None,
+    toolsMap: Optional[dict[str, Callable[..., Any]]] = None,
+) -> List[Any]:
+    if bool(tools) != bool(toolsMap):
+        raise ValueError("Both tools and toolsMap must be provided or omitted.")
+
+    stream = (
+        client.chat.completions.create(
+            model="gpt-4o-mini", messages=messages, tools=tools, stream=True
+        )
+        if tools
+        else client.chat.completions.create(
+            model="gpt-4o-mini", messages=messages, stream=True
+        )
     )
     final_tool_calls = {}
     final_content = ""
     first_flag = True
     for chunk in stream:
         if chunk.choices[0].finish_reason in ["length", "content_filter"]:
-            raise ValueError(f"Model response is too long or filtered. \n{chunk.choices[0]}")
+            raise ValueError(
+                f"Model response is too long or filtered. \n{chunk.choices[0]}"
+            )
         delta = chunk.choices[0].delta
         if delta.content:
             if first_flag:
@@ -57,12 +109,16 @@ def process_ai_response(messages: List[Any]) -> List[Any]:
                     final_tool_calls[index] = tool_call
 
                 final_tool_calls[index].function.arguments += tool_call.function.arguments  # type: ignore
-    
+
     if final_content:
         messages.append({"role": "assistant", "content": final_content})
-        
-    if final_tool_calls:
-        messages.append({"role": "assistant", "tool_calls": list(final_tool_calls.values())})
-        messages = handle_function_calls(list(final_tool_calls.values()), messages)
+
+    if final_tool_calls and tools and toolsMap:
+        messages.append(
+            {"role": "assistant", "tool_calls": list(final_tool_calls.values())}
+        )
+        messages = handle_function_calls(
+            list(final_tool_calls.values()), messages, tools, toolsMap
+        )
 
     return messages

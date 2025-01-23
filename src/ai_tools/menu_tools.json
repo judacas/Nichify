@@ -15,7 +15,7 @@
                 "properties": {
                     "playlist_id": {
                         "type": "string",
-                        "description": "Unique identifier for the playlist (playlist URL, URI, or ID) from which to remove duplicates"
+                        "description": "Unique identifier for the playlist (playlist URL, URI, or ID) to remove duplicates from (use get_closest_playlist if needed)"
                     },
                     "include_similar": {
                         "type": "boolean",
@@ -47,15 +47,15 @@
         "type": "function",
         "function": {
             "name": "get_closest_playlist",
-            "description": "Fetch relevant playlists based on a given title and return the closest match.",
+            "description": "Fetch relevant playlists based on a given description and return the closest match.",
             "strict": true,
             "parameters": {
                 "type": "object",
                 "required": [
-                    "title"
+                    "description"
                 ],
                 "properties": {
-                    "title": {
+                    "description": {
                         "type": "string",
                         "description": "The title of the playlist to search for."
                     }
