@@ -1,3 +1,4 @@
+from typing import Dict, List
 from dotenv import load_dotenv
 from spotipy import Spotify # type: ignore
 from spotipy.oauth2 import SpotifyOAuth # type: ignore
@@ -13,13 +14,21 @@ sp = Spotify(auth_manager=SpotifyOAuth(
     scope="user-library-read playlist-read-private, playlist-modify-private playlist-modify-public"
 ))
 
+def get_all_playlist_tracks(playlist_id: str):
+    tracks = []
+    results = sp.playlist_tracks(playlist_id, limit=100)
+    if results is None:
+        raise ValueError("Playlist not found or empty.")
+    while results:
+        tracks.extend(results['items'])
+        results = sp.next(results)
+
+    return tracks
 
 def find_exact_duplicates(playlist_id: str):
     # Fetch playlist tracks
-    results = sp.playlist_tracks(playlist_id)
-    if not results:
-        raise ValueError("Playlist not found or empty.")
-    tracks = results['items']
+    tracks = get_all_playlist_tracks(playlist_id)
+    print(f"Found {len(tracks)} tracks in the playlist.")
 
     # Collect metadata for comparison
     seen = {}
@@ -50,24 +59,25 @@ def get_user_playlists() -> list[dict]:
     """
     playlists = []
     seen_ids = set()  # Track IDs we've already processed
-    current_user_id = sp.current_user()['id']  # Get the current user's Spotify ID
+    current_user_id = sp.current_user()
+    if current_user_id is None:
+        raise ValueError("User ID not found.")
+    current_user_id = current_user_id['id']
     results = sp.current_user_playlists()
 
     while results:
         for playlist in results['items']:
             # Check if playlist ID has already been added
-            if playlist['id'] not in seen_ids:
-                # Include only playlists owned by the user
-                if playlist['owner']['id'] == current_user_id:
-                    playlists.append({
-                        'id': playlist['id'],
-                        'name': playlist['name'],
-                        'description': playlist.get('description', ''),
-                        'tracks_total': playlist['tracks']['total'],
-                        'snapshot_id': playlist['snapshot_id'],
-                        'image_url': playlist['images'][0]['url'] if playlist['images'] else None
-                    })
-                    seen_ids.add(playlist['id'])  # Mark this ID as seen
+            if playlist['id'] not in seen_ids and playlist['owner']['id'] == current_user_id:
+                playlists.append({
+                    'id': playlist['id'],
+                    'name': playlist['name'],
+                    'description': playlist.get('description', ''),
+                    'tracks_total': playlist['tracks']['total'],
+                    'snapshot_id': playlist['snapshot_id'],
+                    'image_url': playlist['images'][0]['url'] if playlist['images'] else None
+                })
+                seen_ids.add(playlist['id'])  # Mark this ID as seen
 
         # Move to the next page of results
         results = sp.next(results) if results['next'] else None

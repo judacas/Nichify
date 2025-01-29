@@ -3,7 +3,7 @@
         "type": "function",
         "function": {
             "name": "remove_duplicates",
-            "description": "Removes exact duplicates from a given playlist and optionally handles similar tracks.",
+            "description": "Removes exact duplicates from a given playlist and optionally handles similar tracks. (modifies the playlist)",
             "strict": true,
             "parameters": {
                 "type": "object",
@@ -19,11 +19,11 @@
                     },
                     "include_similar": {
                         "type": "boolean",
-                        "description": "Flag indicating whether to include similar tracks in the removal process (not yet implemented)"
+                        "description": "Flag indicating whether to include similar tracks in the removal process (not yet implemented just put false)"
                     },
                     "remove_similar_automatically": {
                         "type": "boolean",
-                        "description": "Flag indicating whether to remove duplicates automatically (not yet implemented)"
+                        "description": "Flag indicating whether to remove duplicates automatically (not yet implemented, just put false)"
                     }
                 },
                 "additionalProperties": false
@@ -47,7 +47,7 @@
         "type": "function",
         "function": {
             "name": "get_closest_playlist",
-            "description": "Fetch relevant playlists based on a given description and return the closest match.",
+            "description": "If the player mentions a playlist without providing a unique identifier, this function will attempt to find the closest match. (does not modify the playlist)",
             "strict": true,
             "parameters": {
                 "type": "object",
@@ -57,7 +57,7 @@
                 "properties": {
                     "description": {
                         "type": "string",
-                        "description": "The title of the playlist to search for."
+                        "description": "the way the user described or named their playlist, does not need to be clear"
                     }
                 },
                 "additionalProperties": false
