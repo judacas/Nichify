@@ -1,5 +1,5 @@
 import json
-from typing import Any, Callable, TypedDict
+import traceback
 from spotify_handler import find_exact_duplicates, sp
 from db_handler import playlists
 from Levenshtein import ratio as levenshtein_ratio
@@ -7,7 +7,6 @@ from ai_handler import process_ai_response
 from constants import find_playlist_prompt
 
 
-#! when added another whiskey drinking to Merica it did not find any duplicates, find out why
 def ai_call_remove_duplicates(
     playlist_id: str, include_similar: bool, remove_similar_automatically: bool
 ):
@@ -18,21 +17,25 @@ def ai_call_remove_duplicates(
                 "status": "Success",
                 "message": "No duplicates found in the playlist.",
             }
-        sp.playlist_remove_all_occurrences_of_items(playlist_id, exact_duplicates)
+        removed = list({track_id for track_ids in exact_duplicates.values() for track_id in track_ids})
+        sp.playlist_remove_all_occurrences_of_items(playlist_id, removed)
+        addBack = [track_ids[0] for track_ids in exact_duplicates.values()]
+        sp.playlist_add_items(playlist_id, addBack)
         if include_similar:
             return {
                 "status": "success",
-                "message": f"Removed {len(exact_duplicates)} exact_duplicates",
-                "removed": exact_duplicates,
+                "message": f"Removed duplicates for {len(exact_duplicates)} songs",
+                "removed": removed,
                 "Note": "Similar removal not implemented yet.",
             }
         return {
             "status": "success",
-            "message": f"Removed {len(exact_duplicates)} exact_duplicates automatically.",
-            "removed": exact_duplicates,
+            "message": f"Removed duplicates for {len(exact_duplicates)} song automatically.",
+            "removed": removed,
         }
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        traceback_str = traceback.format_exc()
+        return {"status": "error", "message": str(e), "traceback": traceback_str}
 
 
 def ai_get_closest_playlist(description: str) -> dict:

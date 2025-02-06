@@ -28,11 +28,8 @@ def get_all_playlist_tracks(playlist_id: str):
 def find_exact_duplicates(playlist_id: str):
     # Fetch playlist tracks
     tracks = get_all_playlist_tracks(playlist_id)
-    print(f"Found {len(tracks)} tracks in the playlist.")
-
-    # Collect metadata for comparison
-    seen = {}
-    duplicates = []
+    
+    seen = {} # type: ignore
 
     for track in tracks:
         track_id: str = track['track']['id']
@@ -44,11 +41,11 @@ def find_exact_duplicates(playlist_id: str):
         track_key = (title, artist, length)
 
         if track_key in seen:
-            duplicates.append(track_id)
+            seen[track_key].append(track_id)
         else:
-            seen[track_key] = track_id
+            seen[track_key] = [track_id]
 
-    return duplicates
+    return {key: value for key, value in seen.items() if len(value) > 1} # Return only the duplicates
 
 def get_user_playlists() -> list[dict]:
     """
