@@ -1,10 +1,10 @@
 import json
 import traceback
-from spotify_handler import find_exact_duplicates, sp
-from db_handler import playlists
+from .spotify_handler import find_exact_duplicates, get_spotify_client
+from .db_handler import get_recently_modified_playlists
 from Levenshtein import ratio as levenshtein_ratio
-from ai_handler import process_ai_response
-from constants import find_playlist_prompt
+from .ai_handler import process_ai_response
+from .constants import find_playlist_prompt
 
 
 def ai_call_remove_duplicates(
@@ -14,23 +14,24 @@ def ai_call_remove_duplicates(
         exact_duplicates = find_exact_duplicates(playlist_id)
         if not exact_duplicates:
             return {
-                "status": "Success",
+                "status": "success",
                 "message": "No duplicates found in the playlist.",
             }
         removed = list({track_id for track_ids in exact_duplicates.values() for track_id in track_ids})
+        sp = get_spotify_client()
         sp.playlist_remove_all_occurrences_of_items(playlist_id, removed)
         addBack = [track_ids[0] for track_ids in exact_duplicates.values()]
         sp.playlist_add_items(playlist_id, addBack)
         if include_similar:
             return {
                 "status": "success",
-                "message": f"Removed duplicates for {len(exact_duplicates)} songs",
+                "message": f"Removed duplicates for {len(exact_duplicates)} songs.",
                 "removed": removed,
-                "Note": "Similar removal not implemented yet.",
+                "note": "Similar removal not implemented yet.",
             }
         return {
             "status": "success",
-            "message": f"Removed duplicates for {len(exact_duplicates)} song automatically.",
+            "message": f"Removed duplicates for {len(exact_duplicates)} songs.",
             "removed": removed,
         }
     except Exception as e:
@@ -44,11 +45,12 @@ def ai_get_closest_playlist(description: str) -> dict:
     If no match is found, fallback to GPT-4o-mini.
 
     Args:
-        title (str): The playlist name provided by the user.
+        description (str): The playlist description or name provided by the user.
 
     Returns:
         dict: A dictionary containing the matched playlist details or an error message.
     """
+    playlists = get_recently_modified_playlists()
     if not playlists:
         return {
             "status": "error",
@@ -72,7 +74,7 @@ def ai_get_closest_playlist(description: str) -> dict:
 
     # 2. Use Levenshtein ratio for fuzzy matching
     closest_match = playlists[0]
-    highest_ratio: float = 0
+    highest_ratio: float = 0.0
 
     for playlist in playlists:
         similarity_ratio = levenshtein_ratio(
@@ -99,18 +101,23 @@ def ai_get_closest_playlist(description: str) -> dict:
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+
 def find_closest_via_gpt(description):
+    playlists = get_recently_modified_playlists()
     playlist_data = [
         {
             "id": playlist.id,
             "name": playlist.name,
             "description": playlist.description,
-            "tracks_total": playlist.tracks_total
+            "tracks_total": playlist.tracks_total,
         }
         for playlist in playlists
     ]
 
-    messages = [{"role": "system", "content": find_playlist_prompt}, {"role": "user", "content": f"target: {description}\n playlists: {json.dumps(playlist_data)}"}]
+    messages = [
+        {"role": "system", "content": find_playlist_prompt},
+        {"role": "user", "content": f"target: {description}\n playlists: {json.dumps(playlist_data)}"},
+    ]
     messages = process_ai_response(messages)
     found = messages[-1]["content"]
     playlist = next((p for p in playlists if p.id == found), None)
@@ -128,7 +135,7 @@ def find_closest_via_gpt(description):
         else {
             "status": "error",
             "message": "No matching playlist found.",
-            "AI_error": found,
+            "ai_error": found,
         }
     )
 

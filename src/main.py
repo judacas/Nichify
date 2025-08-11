@@ -1,15 +1,19 @@
 from typing import Any, Callable, List
-from ai_commands import (
+from .ai_commands import (
     exit_application,
     ai_call_remove_duplicates,
     ai_get_closest_playlist,
 )
-from ai_handler import process_ai_response, process_user_request
-from constants import menu_prompt
-from db_handler import init_db, playlists
+from .ai_handler import process_ai_response, process_user_request
+from .constants import menu_prompt
+from .db_handler import init_db
+from .logging_config import configure_logging
 import json
+import os
 
-with open("ai_tools/menu_tools.json", "r") as file:
+# Load tools JSON relative to this file, not the CWD
+TOOLS_PATH = os.path.join(os.path.dirname(__file__), "ai_tools", "menu_tools.json")
+with open(TOOLS_PATH, "r", encoding="utf-8") as file:
     menuTools = json.load(file)
 
 menuToolsMap: dict[str, Callable] = {
@@ -27,6 +31,7 @@ def printMenu():
 
 
 def main():
+    configure_logging()
     init_db()
     print("\033[93mWelcome to Nichify! I am your assistant for managing Spotify playlists.\033[0m")
     printMenu()

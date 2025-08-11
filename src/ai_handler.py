@@ -1,13 +1,16 @@
 import os
 from typing import Any, Callable, List, Optional
 import json
+import logging
 from openai import OpenAI
-from dotenv import load_dotenv
+from .settings import get_settings  # type: ignore
 
-load_dotenv()
+logger = logging.getLogger(__name__)
+
+_settings = get_settings()
 
 # Initialize OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=_settings.openai_api_key)
 
 
 def get_user_input(messages: List[Any]) -> List[Any]:
@@ -37,8 +40,8 @@ def process_user_request(
 ) -> List[dict]:
     try:
         messages = get_user_input(messages)
-    except ValueError as e:
-        print("\n")
+    except ValueError:
+        logger.debug("Invalid user input encountered")
         return messages
     messages = process_ai_response(messages, tools=tools, toolsMap=toolsMap)
     return messages
@@ -52,12 +55,21 @@ def handle_function_calls(
 ) -> List[Any]:
     for tool_call in tool_calls:
         tool = tool_call.function.name
-        args = json.loads(tool_call.function.arguments)
-        print(f"\n\033[94mTool: {tool}({args})\033[0m")
+        # Guard against None/partial arguments during streaming assembly
+        args_str = getattr(tool_call.function, "arguments", None) or ""
+        try:
+            args = json.loads(args_str) if args_str else {}
+        except json.JSONDecodeError:
+            # Best-effort: wrap in braces if missing
+            try:
+                args = json.loads(f"{{{args_str}}}")
+            except Exception:
+                args = {}
+        logger.debug("Tool call: %s(%s)", tool, args)
         if tool not in toolsMap:
             raise ValueError(f"Command {tool} not found in dispatcher.")
-        result:dict = toolsMap[tool](**args)
-        print(f"\033[94mResult: {json.dumps(result, indent=4)}\033[0m")
+        result: dict = toolsMap[tool](**args)
+        logger.debug("Tool result: %s", result)
         messages.append(
             {
                 "role": "tool",
@@ -107,8 +119,13 @@ def process_ai_response(
 
                 if index not in final_tool_calls:
                     final_tool_calls[index] = tool_call
+                    # Ensure arguments string is initialized
+                    if final_tool_calls[index].function.arguments is None:
+                        final_tool_calls[index].function.arguments = ""
 
-                final_tool_calls[index].function.arguments += tool_call.function.arguments  # type: ignore
+                # Accumulate arguments pieces safely
+                incoming_args = tool_call.function.arguments or ""
+                final_tool_calls[index].function.arguments += incoming_args  # type: ignore
 
     if final_content:
         messages.append({"role": "assistant", "content": final_content})
