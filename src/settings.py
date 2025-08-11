@@ -1,5 +1,6 @@
 from functools import lru_cache
-from pydantic import BaseSettings, Field
+from pydantic_settings import BaseSettings
+from pydantic import Field
 from dotenv import load_dotenv
 from typing import Optional
 
@@ -33,3 +34,7 @@ class Settings(BaseSettings):
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]
+
+
+def reload_settings() -> None:
+    get_settings.cache_clear()  # type: ignore[attr-defined]

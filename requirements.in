@@ -1,6 +1,7 @@
 openai
 python-dotenv
 pydantic
+pydantic-settings
 spotipy
 SQLAlchemy
 psycopg[binary]

@@ -19,7 +19,7 @@ def make_chunk(content=None, tool_index=None, arg_piece=None, finish_reason=None
     delta = SimpleNamespace(content=content, tool_calls=None)
     if tool_index is not None:
         function = SimpleNamespace(name="remove_duplicates", arguments=arg_piece)
-        tool_call = SimpleNamespace(index=tool_index, function=function)
+        tool_call = SimpleNamespace(index=tool_index, function=function, id="call-0")
         delta.tool_calls = [tool_call]
     choice = SimpleNamespace(delta=delta, finish_reason=finish_reason)
     return SimpleNamespace(choices=[choice])

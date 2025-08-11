@@ -13,19 +13,34 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
-# Construct the database URL (allow DATABASE_URL override)
-DATABASE_URL = settings.database_url or (
-    f"postgresql+psycopg://{settings.db_user}:{settings.db_password}@"
-    f"{settings.db_host}:{settings.db_port}/{settings.db_name}"
-)
+# Dynamic engine configuration
+_current_db_url: str | None = None
+engine = None  # type: ignore[assignment]
+SessionFactory = None  # type: ignore[assignment]
 
-# Initialize SQLAlchemy
-engine = create_engine(DATABASE_URL)
-SessionFactory = sessionmaker(bind=engine, expire_on_commit=False)
+
+def _compose_default_url() -> str:
+    return (
+        f"postgresql+psycopg://{settings.db_user}:{settings.db_password}@"
+        f"{settings.db_host}:{settings.db_port}/{settings.db_name}"
+    )
+
+
+def reconfigure_engine_from_env() -> None:
+    global engine, SessionFactory, _current_db_url
+    env_url = os.getenv("DATABASE_URL")
+    db_url = env_url or settings.database_url or _compose_default_url()
+    if db_url != _current_db_url or engine is None:
+        engine = create_engine(db_url)
+        SessionFactory = sessionmaker(bind=engine, expire_on_commit=False)
+        _current_db_url = db_url
+        logger.debug("Database engine configured: %s", db_url)
 
 
 @contextmanager
 def get_session() -> Iterator[SASession]:
+    reconfigure_engine_from_env()
+    assert SessionFactory is not None
     session = SessionFactory()
     try:
         yield session
@@ -124,6 +139,8 @@ def get_recently_modified_playlists(days_cutoff: int = 30) -> list[Playlist]:
 
 def drop_all_tables():
     try:
+        reconfigure_engine_from_env()
+        assert engine is not None
         Base.metadata.drop_all(engine)
         logger.info("All tables dropped successfully!")
     except Exception:
@@ -132,6 +149,8 @@ def drop_all_tables():
 
 def init_db(drop: bool = False):
     try:
+        reconfigure_engine_from_env()
+        assert engine is not None
         if drop:
             drop_all_tables()
         Base.metadata.create_all(engine)
