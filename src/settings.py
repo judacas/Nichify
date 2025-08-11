@@ -1,6 +1,8 @@
 from functools import lru_cache
-from pydantic import BaseSettings, Field
+from pydantic_settings import BaseSettings
+from pydantic import Field
 from dotenv import load_dotenv
+from typing import Optional
 
 # Load .env once at import time
 load_dotenv()
@@ -16,6 +18,7 @@ class Settings(BaseSettings):
     spotipy_redirect_uri: str = Field(alias="SPOTIPY_REDIRECT_URI")
 
     # Database
+    database_url: Optional[str] = Field(default=None, alias="DATABASE_URL")
     db_host: str = Field(default="127.0.0.1", alias="DB_HOST")
     db_port: int = Field(default=5432, alias="DB_PORT")
     db_name: str = Field(default="nichify", alias="DB_NAME")
@@ -31,3 +34,7 @@ class Settings(BaseSettings):
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]
+
+
+def reload_settings() -> None:
+    get_settings.cache_clear()  # type: ignore[attr-defined]
