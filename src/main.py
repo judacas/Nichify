@@ -7,6 +7,7 @@ from .ai_commands import (
 from .ai_handler import process_ai_response, process_user_request
 from .constants import menu_prompt
 from .db_handler import init_db
+from .logging_config import configure_logging
 import json
 import os
 
@@ -30,6 +31,7 @@ def printMenu():
 
 
 def main():
+    configure_logging()
     init_db()
     print("\033[93mWelcome to Nichify! I am your assistant for managing Spotify playlists.\033[0m")
     printMenu()

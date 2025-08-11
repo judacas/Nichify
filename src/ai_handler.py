@@ -1,8 +1,11 @@
 import os
 from typing import Any, Callable, List, Optional
 import json
+import logging
 from openai import OpenAI
 from .settings import get_settings  # type: ignore
+
+logger = logging.getLogger(__name__)
 
 _settings = get_settings()
 
@@ -37,8 +40,8 @@ def process_user_request(
 ) -> List[dict]:
     try:
         messages = get_user_input(messages)
-    except ValueError as e:
-        print("\n")
+    except ValueError:
+        logger.debug("Invalid user input encountered")
         return messages
     messages = process_ai_response(messages, tools=tools, toolsMap=toolsMap)
     return messages
@@ -62,11 +65,11 @@ def handle_function_calls(
                 args = json.loads(f"{{{args_str}}}")
             except Exception:
                 args = {}
-        print(f"\n\033[94mTool: {tool}({args})\033[0m")
+        logger.debug("Tool call: %s(%s)", tool, args)
         if tool not in toolsMap:
             raise ValueError(f"Command {tool} not found in dispatcher.")
         result: dict = toolsMap[tool](**args)
-        print(f"\033[94mResult: {json.dumps(result, indent=4)}\033[0m")
+        logger.debug("Tool result: %s", result)
         messages.append(
             {
                 "role": "tool",

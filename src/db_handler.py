@@ -6,6 +6,9 @@ from sqlalchemy import DateTime, create_engine, Column, Integer, String, JSON
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from .settings import get_settings  # type: ignore
 from .spotify_handler import get_user_playlists
+import logging
+
+logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
@@ -58,7 +61,7 @@ def save_playlist_to_db(raw_playlist_data: dict):
 
         if existing_playlist := session.query(Playlist).filter_by(id=playlist_id).first():
             if existing_playlist.snapshot_id == snapshot_id:
-                print(f"Playlist '{name}' already up-to-date. Skipping...")
+                logger.info("Playlist '%s' already up-to-date. Skipping...", name)
                 return
             existing_playlist.snapshot_id = snapshot_id
             existing_playlist.last_modified = datetime.now(timezone.utc)  # type: ignore
@@ -81,14 +84,14 @@ def save_playlist_to_db(raw_playlist_data: dict):
 
         # Commit changes
         session.commit()
-        print(f"Playlist '{name}' saved successfully!")
+        logger.info("Playlist '%s' saved successfully!", name)
 
     except IntegrityError as e:
         session.rollback()
-        print(f"Database integrity error: {e}")
-    except Exception as e:
+        logger.error("Database integrity error: %s", e)
+    except Exception:
         session.rollback()
-        print(f"Error saving playlist: {e}")
+        logger.exception("Error saving playlist")
 
 
 def save_playlists_to_db(playlists_data=None):
@@ -115,9 +118,9 @@ def get_recently_modified_playlists(days_cutoff: int = 30) -> list[Playlist]:
 def drop_all_tables():
     try:
         Base.metadata.drop_all(engine)
-        print("All tables dropped successfully!")
-    except Exception as e:
-        print(f"Error dropping tables: {e}")
+        logger.info("All tables dropped successfully!")
+    except Exception:
+        logger.exception("Error dropping tables")
 
 
 def init_db(drop: bool = False):
@@ -126,9 +129,9 @@ def init_db(drop: bool = False):
             drop_all_tables()
         Base.metadata.create_all(engine)
         save_playlists_to_db()
-        print("Database initialized successfully!")
-    except Exception as e:
-        print(f"Error initializing the database: {e}")
+        logger.info("Database initialized successfully!")
+    except Exception:
+        logger.exception("Error initializing the database")
 
 
 if __name__ == "__main__":
