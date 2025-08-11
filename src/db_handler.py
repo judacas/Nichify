@@ -1,34 +1,32 @@
-from datetime import datetime,timezone, timedelta
-from typing import List, Optional
+from datetime import datetime, timezone, timedelta
+from typing import List
 from sqlalchemy.exc import IntegrityError
 import os
 from sqlalchemy import DateTime, create_engine, Column, Integer, String, JSON
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
-from dotenv import load_dotenv
-from spotify_handler import get_user_playlists
+from .settings import get_settings  # type: ignore
+from .spotify_handler import get_user_playlists
 
-# Load environment variables
-load_dotenv(override=True)
-
-# Retrieve database credentials from .env
-DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
-DB_PORT = os.getenv("DB_PORT", "5432")
-DB_NAME = os.getenv("DB_NAME", "nichify")
-DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+settings = get_settings()
 
 # Construct the database URL
-DATABASE_URL = f"postgresql+psycopg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+DATABASE_URL = (
+    f"postgresql+psycopg://{settings.db_user}:{settings.db_password}@"
+    f"{settings.db_host}:{settings.db_port}/{settings.db_name}"
+)
 
 # Initialize SQLAlchemy
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 session = Session()
+
+
 class Base(DeclarativeBase):
     pass
 
-class Song(Base): 
-    __tablename__ = 'songs'
+
+class Song(Base):
+    __tablename__ = "songs"
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String, nullable=False)
     artist = Column(String, nullable=False)
@@ -36,43 +34,39 @@ class Song(Base):
     length = Column(Integer, nullable=True)  # Length in seconds
     song_metadata = Column(JSON, nullable=True)  # Additional metadata
 
-class Playlist(Base): 
-    __tablename__ = 'playlists'
+
+class Playlist(Base):
+    __tablename__ = "playlists"
     id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
-    description:Optional[Column] = Column(String)
+    description = Column(String, nullable=True)
     tracks_total = Column(Integer, nullable=False)
     snapshot_id = Column(String, nullable=False)
-    image_url:Optional[Column] = Column(String)
-    last_modified = Column(DateTime, default=datetime.now(timezone.utc))
-    
-playlists: List[Playlist]= []
-    
+    image_url = Column(String, nullable=True)
+    last_modified = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 def save_playlist_to_db(raw_playlist_data: dict):
     # sourcery skip: extract-method
     try:
-        playlist_id = raw_playlist_data['id']
-        name = raw_playlist_data['name']
-        description = raw_playlist_data.get('description')
+        playlist_id = raw_playlist_data["id"]
+        name = raw_playlist_data["name"]
+        description = raw_playlist_data.get("description")
         tracks_total = raw_playlist_data["tracks_total"]
-        snapshot_id = raw_playlist_data['snapshot_id']
-        image_url = raw_playlist_data.get('image_url')
+        snapshot_id = raw_playlist_data["snapshot_id"]
+        image_url = raw_playlist_data.get("image_url")
 
-        if (
-            existing_playlist := session.query(Playlist)
-            .filter_by(id=playlist_id)
-            .first()
-        ):
+        if existing_playlist := session.query(Playlist).filter_by(id=playlist_id).first():
             if existing_playlist.snapshot_id == snapshot_id:
                 print(f"Playlist '{name}' already up-to-date. Skipping...")
                 return
             existing_playlist.snapshot_id = snapshot_id
-            existing_playlist.last_modified = datetime.now(timezone.utc) # type: ignore
+            existing_playlist.last_modified = datetime.now(timezone.utc)  # type: ignore
             existing_playlist.name = name
             existing_playlist.description = description
             existing_playlist.tracks_total = tracks_total
             existing_playlist.image_url = image_url
-                
+
         else:
             # Add new playlist
             new_playlist = Playlist(
@@ -81,7 +75,7 @@ def save_playlist_to_db(raw_playlist_data: dict):
                 description=description,
                 tracks_total=tracks_total,
                 snapshot_id=snapshot_id,
-                image_url=image_url
+                image_url=image_url,
             )
             session.add(new_playlist)
 
@@ -96,36 +90,28 @@ def save_playlist_to_db(raw_playlist_data: dict):
         session.rollback()
         print(f"Error saving playlist: {e}")
 
-def save_playlists_to_db(playlists = None):
-    if playlists is None:
-        playlists = get_user_playlists()
-    for playlist in playlists:
+
+def save_playlists_to_db(playlists_data=None):
+    if playlists_data is None:
+        playlists_data = get_user_playlists()
+    for playlist in playlists_data:
         save_playlist_to_db(playlist)
-        
+
 
 def get_recently_modified_playlists(days_cutoff: int = 30) -> list[Playlist]:
-    # Calculate the cutoff date
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_cutoff)
 
     # Fetch all playlists modified within the cutoff date
-    playlists = session.query(Playlist)\
-        .filter(Playlist.last_modified >= cutoff_date)\
-        .order_by(Playlist.last_modified.desc())\
+    filtered = (
+        session.query(Playlist)
+        .filter(Playlist.last_modified >= cutoff_date)
+        .order_by(Playlist.last_modified.desc())
         .all()
+    )
 
-    # If no playlists match, return an empty list
-    if not playlists:
-        return []
+    return filtered
 
-    # Get the least recently modified playlist's timestamp
-    oldest_last_modified = session.query(Playlist.last_modified)\
-        .order_by(Playlist.last_modified.asc())\
-        .first()
-    if oldest_last_modified is None:
-        return playlists
-    return [playlist for playlist in playlists if playlist.last_modified != oldest_last_modified[0]]
 
-    
 def drop_all_tables():
     try:
         Base.metadata.drop_all(engine)
@@ -140,10 +126,6 @@ def init_db(drop: bool = False):
             drop_all_tables()
         Base.metadata.create_all(engine)
         save_playlists_to_db()
-        global playlists
-        playlists.clear()
-        playlists.extend(get_recently_modified_playlists())
-        print(playlists)
         print("Database initialized successfully!")
     except Exception as e:
         print(f"Error initializing the database: {e}")
@@ -151,9 +133,10 @@ def init_db(drop: bool = False):
 
 if __name__ == "__main__":
     import sys
+
     drop = len(sys.argv) > 1 and sys.argv[1] == "--drop"
     init_db(drop=drop)
     print("\n\nRecently modified playlists:")
-    for playlist in playlists:
+    for playlist in get_recently_modified_playlists():
         print(playlist.name, playlist.last_modified)
 

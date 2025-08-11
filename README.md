@@ -34,12 +34,13 @@ Nichify supports:
 
 ### Main Components
 
-- `main.py`: Entry point for the application. Handles the user interface and request routing.
-- `ai_handler.py`: Manages communication with OpenAI's GPT-4o-mini model.
-- `ai_commands.py`: Contains specific command implementations like removing duplicates.
-- `spotify_handler.py`: Interacts with Spotify for playlist operations.
-- `db_setup.py`: Sets up and initializes the PostgreSQL database.
-- `constants.py`: Defines reusable constants like menu prompts.
+- `src/main.py`: Entry point for the application. Handles the user interface and request routing.
+- `src/ai_handler.py`: Manages communication with OpenAI's GPT-4o-mini model.
+- `src/ai_commands.py`: Contains specific command implementations like removing duplicates.
+- `src/spotify_handler.py`: Interacts with Spotify for playlist operations.
+- `src/db_handler.py`: Sets up and initializes the PostgreSQL database.
+- `src/constants.py`: Defines reusable constants like menu prompts.
+- `src/settings.py`: Centralized configuration using environment variables.
 
 ---
 
@@ -47,7 +48,7 @@ Nichify supports:
 
 ### Prerequisites
 
-1. Python 3.8+
+1. Python 3.10+
 2. Spotify Developer Account
 3. OpenAI API Key
 4. PostgreSQL Database
@@ -61,13 +62,20 @@ Nichify supports:
    cd nichify
    ```
 
-2. Install dependencies:
+2. Create and activate a virtual environment (recommended):
+
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   ```
+
+3. Install dependencies:
 
    ```bash
    pip install -r requirements.txt
    ```
 
-3. Configure environment variables:
+4. Configure environment variables:
 
    - Create a `.env` file in the root directory with the following:
      ```env
@@ -82,16 +90,18 @@ Nichify supports:
      DB_PASSWORD=your_password
      ```
 
-4. Initialize the database:
+5. Initialize the database:
 
    ```bash
-   python db_setup.py
+   python -m src.db_handler
    ```
 
 ### Run the Application
 
+Run from the project root so that paths resolve correctly.
+
 ```bash
-python main.py
+python -m src.main
 ```
 
 ---
@@ -100,7 +110,7 @@ python main.py
 
 1. **Start Nichify**:
 
-   - Run `main.py` to begin interacting with the application.
+   - Run `python -m src.main` to begin interacting with the application.
 
 2. **Choose a Command**:
 

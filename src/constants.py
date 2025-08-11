@@ -1,6 +1,3 @@
-import pydantic
-
-
 
 menu_prompt = """
 You are Nichify, an assistant(almost free text cli like menu) for managing Spotify playlists. Your available commands are your tools
